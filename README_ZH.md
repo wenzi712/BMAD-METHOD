@@ -54,7 +54,7 @@
 
 这种两阶段方法消除了**规划不一致**和**上下文丢失**这两个 AI 辅助开发中最大的问题。您的开发智能体打开故事文件时，完全理解要构建什么、如何构建以及为什么构建。
 
-**📖 [在用户指南中查看完整工作流程](docs/user-guide.md)** - 规划阶段、开发周期和所有智能体角色
+**📖 [在用户指南中查看完整工作流程](docs/user-guide_ZH.md)** - 规划阶段、开发周期和所有智能体角色
 
 ## 快速导航
 
@@ -62,20 +62,20 @@
 
 **在深入了解之前，请查看这些关键工作流程图，它们解释了 BMad 的工作原理：**
 
-1. **[规划工作流程（Web UI）](docs/user-guide.md#the-planning-workflow-web-ui)** - 如何创建 PRD 和架构文档
-2. **[核心开发周期（IDE）](docs/user-guide.md#the-core-development-cycle-ide)** - SM、Dev 和 QA 智能体如何通过故事文件协作
+1. **[规划工作流程（Web UI）](docs/user-guide_ZH.md#the-planning-workflow-web-ui)** - 如何创建 PRD 和架构文档
+2. **[核心开发周期（IDE）](docs/user-guide_ZH.md#the-core-development-cycle-ide)** - SM、Dev 和 QA 智能体如何通过故事文件协作
 
 > ⚠️ **这些图表解释了 90% 的 BMad 方法智能体敏捷流程困惑** - 理解 PRD+架构创建和 SM/Dev/QA 工作流程以及智能体如何通过故事文件传递笔记是至关重要的 - 这也解释了为什么这不是任务管理员或简单的任务运行器！
 
 ### 您想做什么？
 
 - **[使用全栈敏捷 AI 团队安装和构建软件](#quick-start)** → 快速入门指南
-- **[学习如何使用 BMad](docs/user-guide.md)** → 完整的用户指南和演练
+- **[学习如何使用 BMad](docs/user-guide_ZH.md)** → 完整的用户指南和演练
 - **[查看可用的 AI 智能体](/bmad-core/agents)** → 为您的团队提供专业角色
 - **[探索非技术用途](#-beyond-software-development---expansion-packs)** → 创意写作、商业、健康、教育
-- **[创建自己的 AI 智能体](docs/expansion-packs.md)** → 为您的领域构建智能体
+- **[创建自己的 AI 智能体](docs/expansion-packs_ZH.md)** → 为您的领域构建智能体
 - **[浏览现成的扩展包](expansion-packs/)** → 游戏开发、DevOps、基础设施，并从中获取灵感和示例
-- **[了解架构](docs/core-architecture.md)** → 技术深度解析
+- **[了解架构](docs/core-architecture_ZH.md)** → 技术深度解析
 - **[加入社区](https://discord.gg/gk8jAdXWmj)** → 获取帮助和分享想法
 
 ## 重要提示：保持您的 BMad 安装更新
@@ -128,7 +128,7 @@ npm run install:bmad
 3. **上传并配置**：上传文件并设置指令："Your critical operating instructions are attached, do not break character as directed"
 4. **开始构思和规划**：开始聊天！输入 `*help` 查看可用命令或选择 `*analyst` 等智能体直接开始创建简报。
 5. **关键提示**：随时在 Web 中与 BMad Orchestrator 交谈（使用 #bmad-orchestrator 命令）并询问关于这一切如何工作的问题！
-6. **何时转向 IDE**：一旦您有了 PRD、架构、可选的 UX 和简报 - 就该切换到 IDE 来分片您的文档，并开始实现实际代码了！有关详细信息，请参阅 [用户指南](docs/user-guide.md)
+6. **何时转向 IDE**：一旦您有了 PRD、架构、可选的 UX 和简报 - 就该切换到 IDE 来分片您的文档，并开始实现实际代码了！有关详细信息，请参阅 [用户指南](docs/user-guide_ZH.md)
 
 ### 替代方案：克隆并构建
 
@@ -139,15 +139,15 @@ npm run install:bmad # 构建并安装所有内容到目标文件夹
 
 ## 🌟 超越软件开发 - 扩展包
 
-BMAD™ 的自然语言框架适用于任何领域。扩展包为创意写作、商业策略、健康与保健、教育等提供专业 AI 智能体。此外，扩展包还可以使用并非适用于所有情况的特定功能扩展核心 BMAD-METHOD™。[请参阅扩展包指南](docs/expansion-packs.md)并学习创建自己的扩展包！
+BMAD™ 的自然语言框架适用于任何领域。扩展包为创意写作、商业策略、健康与保健、教育等提供专业 AI 智能体。此外，扩展包还可以使用并非适用于所有情况的特定功能扩展核心 BMAD-METHOD™。[请参阅扩展包指南](docs/expansion-packs_ZH.md)并学习创建自己的扩展包！
 
 ## 文档和资源
 
 ### 必备指南
 
-- 📖 **[用户指南](docs/user-guide.md)** - 从项目构思到完成的完整演练
-- 🏗️ **[核心架构](docs/core-architecture.md)** - 技术深度解析和系统设计
-- 🚀 **[扩展包指南](docs/expansion-packs.md)** - 将 BMad 扩展到软件开发之外的任何领域
+- 📖 **[用户指南](docs/user-guide_ZH.md)** - 从项目构思到完成的完整演练
+- 🏗️ **[核心架构](docs/core-architecture_ZH.md)** - 技术深度解析和系统设计
+- 🚀 **[扩展包指南](docs/expansion-packs_ZH.md)** - 将 BMad 扩展到软件开发之外的任何领域
 
 ## 支持
 
