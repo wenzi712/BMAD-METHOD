@@ -1,6 +1,6 @@
 const path = require('node:path');
 const fs = require('fs-extra');
-const yaml = require('js-yaml');
+const yaml = require('yaml');
 const chalk = require('chalk');
 const inquirer = require('inquirer');
 const { getProjectRoot, getModulePath } = require('../../../lib/project-root');
@@ -15,7 +15,7 @@ class ConfigCollector {
 
   /**
    * Find the bmad installation directory in a project
-   * V6+ installations can use ANY folder name but ALWAYS have _cfg/manifest.yaml
+   * V6+ installations can use ANY folder name but ALWAYS have _config/manifest.yaml
    * @param {string} projectDir - Project directory
    * @returns {Promise<string>} Path to bmad directory
    */
@@ -26,13 +26,13 @@ class ConfigCollector {
       return path.join(projectDir, 'bmad');
     }
 
-    // V6+ strategy: Look for ANY directory with _cfg/manifest.yaml
+    // V6+ strategy: Look for ANY directory with _config/manifest.yaml
     // This is the definitive marker of a V6+ installation
     try {
       const entries = await fs.readdir(projectDir, { withFileTypes: true });
       for (const entry of entries) {
         if (entry.isDirectory()) {
-          const manifestPath = path.join(projectDir, entry.name, '_cfg', 'manifest.yaml');
+          const manifestPath = path.join(projectDir, entry.name, '_config', 'manifest.yaml');
           if (await fs.pathExists(manifestPath)) {
             // Found a V6+ installation
             return path.join(projectDir, entry.name);
@@ -59,12 +59,12 @@ class ConfigCollector {
       return null;
     }
 
-    // Look for ANY directory with _cfg/manifest.yaml
+    // Look for ANY directory with _config/manifest.yaml
     try {
       const entries = await fs.readdir(projectDir, { withFileTypes: true });
       for (const entry of entries) {
         if (entry.isDirectory()) {
-          const manifestPath = path.join(projectDir, entry.name, '_cfg', 'manifest.yaml');
+          const manifestPath = path.join(projectDir, entry.name, '_config', 'manifest.yaml');
           if (await fs.pathExists(manifestPath)) {
             // Found a V6+ installation, return just the folder name
             return entry.name;
@@ -105,11 +105,17 @@ class ConfigCollector {
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
+        // Skip the _config directory - it's for system use
+        if (entry.name === '_config' || entry.name === '_memory') {
+          continue;
+        }
+
         const moduleConfigPath = path.join(bmadDir, entry.name, 'config.yaml');
+
         if (await fs.pathExists(moduleConfigPath)) {
           try {
             const content = await fs.readFile(moduleConfigPath, 'utf8');
-            const moduleConfig = yaml.load(content);
+            const moduleConfig = yaml.parse(content);
             if (moduleConfig) {
               this.existingConfig[entry.name] = moduleConfig;
               foundAny = true;
@@ -238,7 +244,7 @@ class ConfigCollector {
     }
 
     const configContent = await fs.readFile(configPath, 'utf8');
-    const moduleConfig = yaml.load(configContent);
+    const moduleConfig = yaml.parse(configContent);
 
     if (!moduleConfig) {
       return false;
@@ -514,7 +520,7 @@ class ConfigCollector {
     }
 
     const configContent = await fs.readFile(configPath, 'utf8');
-    const moduleConfig = yaml.load(configContent);
+    const moduleConfig = yaml.parse(configContent);
 
     if (!moduleConfig) {
       return;

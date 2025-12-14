@@ -1,6 +1,6 @@
 const path = require('node:path');
 const fs = require('fs-extra');
-const yaml = require('js-yaml');
+const yaml = require('yaml');
 const crypto = require('node:crypto');
 const { getSourcePath, getModulePath } = require('../../../lib/project-root');
 
@@ -23,13 +23,13 @@ class ManifestGenerator {
 
   /**
    * Generate all manifests for the installation
-   * @param {string} bmadDir - .bmad
+   * @param {string} bmadDir - _bmad
    * @param {Array} selectedModules - Selected modules for installation
    * @param {Array} installedFiles - All installed files (optional, for hash tracking)
    */
   async generateManifests(bmadDir, selectedModules, installedFiles = [], options = {}) {
-    // Create _cfg directory if it doesn't exist
-    const cfgDir = path.join(bmadDir, '_cfg');
+    // Create _config directory if it doesn't exist
+    const cfgDir = path.join(bmadDir, '_config');
     await fs.ensureDir(cfgDir);
 
     // Store modules list (all modules including preserved ones)
@@ -47,7 +47,7 @@ class ManifestGenerator {
     // But all modules should be included in the final manifest
     this.preservedModules = [...new Set([...preservedModules, ...selectedModules, ...installedModules])]; // Include all installed modules
     this.bmadDir = bmadDir;
-    this.bmadFolderName = path.basename(bmadDir); // Get the actual folder name (e.g., '.bmad' or 'bmad')
+    this.bmadFolderName = path.basename(bmadDir); // Get the actual folder name (e.g., '_bmad' or 'bmad')
     this.allInstalledFiles = installedFiles;
 
     if (!Object.prototype.hasOwnProperty.call(options, 'ides')) {
@@ -142,14 +142,14 @@ class ManifestGenerator {
             let workflow;
             if (entry.name === 'workflow.yaml') {
               // Parse YAML workflow
-              workflow = yaml.load(content);
+              workflow = yaml.parse(content);
             } else {
               // Parse MD workflow with YAML frontmatter
               const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
               if (!frontmatterMatch) {
                 continue; // Skip MD files without frontmatter
               }
-              workflow = yaml.load(frontmatterMatch[1]);
+              workflow = yaml.parse(frontmatterMatch[1]);
             }
 
             // Skip template workflows (those with placeholder values)
@@ -459,7 +459,7 @@ class ManifestGenerator {
     if (await fs.pathExists(manifestPath)) {
       try {
         const existingContent = await fs.readFile(manifestPath, 'utf8');
-        const existingManifest = yaml.load(existingContent);
+        const existingManifest = yaml.parse(existingContent);
         if (existingManifest && existingManifest.customModules) {
           existingCustomModules = existingManifest.customModules;
         }
@@ -480,10 +480,9 @@ class ManifestGenerator {
       ides: this.selectedIdes,
     };
 
-    const yamlStr = yaml.dump(manifest, {
+    const yamlStr = yaml.stringify(manifest, {
       indent: 2,
-      lineWidth: -1,
-      noRefs: true,
+      lineWidth: 0,
       sortKeys: false,
     });
 
@@ -903,7 +902,7 @@ class ManifestGenerator {
 
       for (const entry of entries) {
         // Skip if not a directory or is a special directory
-        if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === '_cfg') {
+        if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === '_config') {
           continue;
         }
 

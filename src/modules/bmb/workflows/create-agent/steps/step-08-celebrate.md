@@ -10,14 +10,10 @@ thisStepFile: '{workflow_path}/steps/step-11-celebrate.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/agent-completion-{project_name}.md'
 agentFile: '{{output_file_path}}'
-compiledAgentFile: '{{compiled_agent_path}}'
-
-# Template References
-completionTemplate: '{workflow_path}/templates/completion-summary.md'
 
 # Task References
-advancedElicitationTask: '{project-root}/.bmad/core/tasks/advanced-elicitation.xml'
-partyModeWorkflow: '{project-root}/.bmad/core/workflows/party-mode/workflow.md'
+advancedElicitationTask: '{project-root}/_bmad/core/tasks/advanced-elicitation.xml'
+partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 ---
 
 # Step 11: Celebration and Next Steps
