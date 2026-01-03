@@ -9,7 +9,7 @@ const { ModuleManager } = require('../modules/manager');
 const { IdeManager } = require('../ide/manager');
 const { FileOps } = require('../../../lib/file-ops');
 const { Config } = require('../../../lib/config');
-const { XmlHandler } = require('../../../lib/agent/xml-handler');
+const { XmlHandler } = require('../../../lib/xml-handler');
 const { DependencyResolver } = require('./dependency-resolver');
 const { ConfigCollector } = require('./config-collector');
 const { getProjectRoot, getSourcePath, getModulePath } = require('../../../lib/project-root');
@@ -297,41 +297,49 @@ class Installer {
         console.log('\n'); // Add spacing before IDE questions
 
         for (const ide of newlySelectedIdes) {
-          // Get IDE handler and check if it needs interactive configuration
-          try {
-            // Dynamically load the IDE setup module
-            const ideModule = require(`../ide/${ide}`);
+          // List of IDEs that have interactive prompts
+          //TODO: Why is this here, hardcoding this list here is bad, fix me!
+          const needsPrompts = ['claude-code', 'github-copilot', 'roo', 'cline', 'auggie', 'codex', 'qwen', 'gemini', 'rovo-dev'].includes(
+            ide,
+          );
 
-            // Get the setup class (handle different export formats)
-            let SetupClass;
-            const className =
-              ide
-                .split('-')
-                .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-                .join('') + 'Setup';
+          if (needsPrompts) {
+            // Get IDE handler and collect configuration
+            try {
+              // Dynamically load the IDE setup module
+              const ideModule = require(`../ide/${ide}`);
 
-            if (ideModule[className]) {
-              SetupClass = ideModule[className];
-            } else if (ideModule.default) {
-              SetupClass = ideModule.default;
-            } else {
-              continue;
+              // Get the setup class (handle different export formats)
+              let SetupClass;
+              const className =
+                ide
+                  .split('-')
+                  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                  .join('') + 'Setup';
+
+              if (ideModule[className]) {
+                SetupClass = ideModule[className];
+              } else if (ideModule.default) {
+                SetupClass = ideModule.default;
+              } else {
+                continue;
+              }
+
+              const ideSetup = new SetupClass();
+
+              // Check if this IDE has a collectConfiguration method
+              if (typeof ideSetup.collectConfiguration === 'function') {
+                console.log(chalk.cyan(`\nConfiguring ${ide}...`));
+                ideConfigurations[ide] = await ideSetup.collectConfiguration({
+                  selectedModules: selectedModules || [],
+                  projectDir,
+                  bmadDir,
+                });
+              }
+            } catch {
+              // IDE doesn't have a setup file or collectConfiguration method
+              console.warn(chalk.yellow(`Warning: Could not load configuration for ${ide}`));
             }
-
-            const ideSetup = new SetupClass();
-
-            // Check if this IDE has a collectConfiguration method (no hardcoding needed!)
-            if (typeof ideSetup.collectConfiguration === 'function') {
-              console.log(chalk.cyan(`\nConfiguring ${ide}...`));
-              ideConfigurations[ide] = await ideSetup.collectConfiguration({
-                selectedModules: selectedModules || [],
-                projectDir,
-                bmadDir,
-              });
-            }
-          } catch {
-            // IDE doesn't have a setup file or collectConfiguration method
-            console.warn(chalk.yellow(`Warning: Could not load configuration for ${ide}`));
           }
         }
       }
@@ -835,6 +843,8 @@ class Installer {
         allModules = allModules.filter((m) => m !== 'core');
       }
 
+      const modulesToInstall = allModules;
+
       // For dependency resolution, we only need regular modules (not custom modules)
       // Custom modules are already installed in _bmad and don't need dependency resolution from source
       const regularModulesForResolution = allModules.filter((module) => {
@@ -1213,19 +1223,17 @@ class Installer {
         console.log(chalk.dim('Remove these .bak files it no longer needed\n'));
       }
 
-      // Display completion message (skip if requested, e.g., for quick updates)
-      if (!config._skipCompletion) {
-        const { UI } = require('../../../lib/ui');
-        const ui = new UI();
-        ui.showInstallSummary({
-          path: bmadDir,
-          modules: config.modules,
-          ides: config.ides,
-          customFiles: customFiles.length > 0 ? customFiles : undefined,
-          ttsInjectedFiles: this.enableAgentVibes && this.ttsInjectedFiles.length > 0 ? this.ttsInjectedFiles : undefined,
-          agentVibesEnabled: this.enableAgentVibes || false,
-        });
-      }
+      // Display completion message
+      const { UI } = require('../../../lib/ui');
+      const ui = new UI();
+      ui.showInstallSummary({
+        path: bmadDir,
+        modules: config.modules,
+        ides: config.ides,
+        customFiles: customFiles.length > 0 ? customFiles : undefined,
+        ttsInjectedFiles: this.enableAgentVibes && this.ttsInjectedFiles.length > 0 ? this.ttsInjectedFiles : undefined,
+        agentVibesEnabled: this.enableAgentVibes || false,
+      });
 
       return {
         success: true,
@@ -1505,7 +1513,9 @@ class Installer {
    * @param {string} bmadDir - BMAD installation directory
    * @param {Object} coreFiles - Core files to install
    */
-  async installCoreWithDependencies(bmadDir) {
+  async installCoreWithDependencies(bmadDir, coreFiles) {
+    const sourcePath = getModulePath('core');
+    const targetPath = path.join(bmadDir, 'core');
     await this.installCore(bmadDir);
   }
 
@@ -1515,7 +1525,7 @@ class Installer {
    * @param {string} bmadDir - BMAD installation directory
    * @param {Object} moduleFiles - Module files to install
    */
-  async installModuleWithDependencies(moduleName, bmadDir) {
+  async installModuleWithDependencies(moduleName, bmadDir, moduleFiles) {
     // Get module configuration for conditional installation
     const moduleConfig = this.configCollector.collectedConfig[moduleName] || {};
 
@@ -1787,6 +1797,7 @@ class Installer {
       }
 
       const agentName = agentFile.replace('.md', '');
+      const mdPath = path.join(agentsPath, agentFile);
       const customizePath = path.join(cfgAgentsDir, `${moduleName}-${agentName}.customize.yaml`);
 
       // For .md files that are already compiled, we don't need to do much
@@ -2000,9 +2011,8 @@ class Installer {
         _existingModules: installedModules, // Pass all installed modules for manifest generation
       };
 
-      // Call the standard install method, but skip UI completion for quick updates
-      installConfig._skipCompletion = true;
-      await this.install(installConfig);
+      // Call the standard install method
+      const result = await this.install(installConfig);
 
       // Only succeed the spinner if it's still spinning
       // (install method might have stopped it if folder name changed)
@@ -2142,90 +2152,59 @@ class Installer {
   }
 
   /**
-   * Handle legacy BMAD v4 migration with automatic backup
-   * @param {string} projectDir - Project directory
-   * @param {Object} legacyV4 - Legacy V4 detection result with offenders array
+   * Handle legacy BMAD v4 detection with simple warning
+   * @param {string} _projectDir - Project directory (unused in simplified version)
+   * @param {Object} _legacyV4 - Legacy V4 detection result (unused in simplified version)
    */
-  async handleLegacyV4Migration(projectDir, legacyV4) {
-    console.log(chalk.yellow.bold('\n⚠️  Legacy BMAD v4 detected'));
-    console.log(chalk.dim('The installer found legacy artefacts in your project.\n'));
-
-    // Separate _bmad* folders (auto-backup) from other offending paths (manual cleanup)
-    const bmadFolders = legacyV4.offenders.filter((p) => {
-      const name = path.basename(p);
-      return name.startsWith('_bmad'); // Only dot-prefixed folders get auto-backed up
-    });
-    const otherOffenders = legacyV4.offenders.filter((p) => {
-      const name = path.basename(p);
-      return !name.startsWith('_bmad'); // Everything else is manual cleanup
-    });
-
+  async handleLegacyV4Migration(_projectDir, _legacyV4) {
     const inquirer = require('inquirer').default || require('inquirer');
 
-    // Show warning for other offending paths FIRST
-    if (otherOffenders.length > 0) {
-      console.log(chalk.yellow('⚠️  Recommended cleanup:'));
-      console.log(chalk.dim('It is recommended to remove the following items before proceeding:\n'));
-      for (const p of otherOffenders) console.log(chalk.dim(` - ${p}`));
+    console.log('');
+    console.log(chalk.yellow.bold('⚠️  Legacy BMAD v4 detected'));
+    console.log(chalk.yellow('─'.repeat(80)));
+    console.log(chalk.yellow('Found .bmad-method folder from BMAD v4 installation.'));
+    console.log('');
 
-      console.log(chalk.cyan('\nCleanup commands you can copy/paste:'));
-      console.log(chalk.dim('macOS/Linux:'));
-      for (const p of otherOffenders) console.log(chalk.dim(`  rm -rf '${p}'`));
-      console.log(chalk.dim('Windows:'));
-      for (const p of otherOffenders) console.log(chalk.dim(`  rmdir /S /Q "${p}"`));
+    console.log(chalk.dim('Before continuing with installation, we recommend:'));
+    console.log(chalk.dim('  1. Remove the .bmad-method folder, OR'));
+    console.log(chalk.dim('  2. Back it up by renaming it to another name (e.g., bmad-method-backup)'));
+    console.log('');
 
-      const { cleanedUp } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'cleanedUp',
-          message: 'Have you completed the recommended cleanup? (You can proceed without it, but it is recommended)',
-          default: false,
-        },
-      ]);
+    console.log(chalk.dim('If your v4 installation set up rules or commands, you should remove those as well.'));
+    console.log('');
 
-      if (cleanedUp) {
-        console.log(chalk.green('✓ Cleanup acknowledged\n'));
-      } else {
-        console.log(chalk.yellow('⚠️  Proceeding without recommended cleanup\n'));
-      }
+    const { proceed } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'proceed',
+        message: 'What would you like to do?',
+        choices: [
+          {
+            name: 'Exit and clean up manually (recommended)',
+            value: 'exit',
+            short: 'Exit installation',
+          },
+          {
+            name: 'Continue with installation anyway',
+            value: 'continue',
+            short: 'Continue',
+          },
+        ],
+        default: 'exit',
+      },
+    ]);
+
+    if (proceed === 'exit') {
+      console.log('');
+      console.log(chalk.cyan('Please remove the .bmad-method folder and any v4 rules/commands,'));
+      console.log(chalk.cyan('then run the installer again.'));
+      console.log('');
+      process.exit(0);
     }
 
-    // Handle _bmad* folders with automatic backup
-    if (bmadFolders.length > 0) {
-      console.log(chalk.cyan('The following legacy folders will be moved to v4-backup:'));
-      for (const p of bmadFolders) console.log(chalk.dim(` - ${p}`));
-
-      const { proceed } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'proceed',
-          message: 'Proceed with backing up legacy v4 folders?',
-          default: true,
-        },
-      ]);
-
-      if (proceed) {
-        const backupDir = path.join(projectDir, 'v4-backup');
-        await fs.ensureDir(backupDir);
-
-        for (const folder of bmadFolders) {
-          const folderName = path.basename(folder);
-          const backupPath = path.join(backupDir, folderName);
-
-          // If backup already exists, add timestamp
-          let finalBackupPath = backupPath;
-          if (await fs.pathExists(backupPath)) {
-            const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-').split('T')[0];
-            finalBackupPath = path.join(backupDir, `${folderName}-${timestamp}`);
-          }
-
-          await fs.move(folder, finalBackupPath, { overwrite: false });
-          console.log(chalk.green(`✓ Moved ${folderName} to ${path.relative(projectDir, finalBackupPath)}`));
-        }
-      } else {
-        throw new Error('Installation cancelled by user');
-      }
-    }
+    console.log('');
+    console.log(chalk.yellow('⚠️  Proceeding with installation despite legacy v4 folder'));
+    console.log('');
   }
 
   /**
