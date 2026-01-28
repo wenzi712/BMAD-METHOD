@@ -1,5 +1,252 @@
 # Changelog
 
+## [6.0.0-Beta.2]
+
+- Fix installer so commands match what is installed, centralize most ide into a central file instead of separate files for each ide.
+- Specific IDEs may still need udpates, but all is config driven now and should be easier to maintain
+- Kiro still needs updates, but its been in this state since contributed, will investigate soon
+- Any version older than Beta.0 will recommend removal and reinstall to project. From later alphas though its sufficient to quick update if still desired, but best is just start fresh with Beta.
+
+## [6.0.0-Beta.1]
+
+**Release: January 2026 - Alpha to Beta Transition**
+
+### 🎉 Beta Release
+
+- **Transition from Alpha to Beta**: BMad Method is now in Beta! This marks a significant milestone in the framework's development
+- **NPM Default Tag**: Beta versions are now published with the `latest` tag, making `npx bmad-method` serve the beta version by default
+
+### 🌟 Key Highlights
+
+1. **bmad-help**: Revolutionary AI-powered guidance system replaces the alpha workflow-init and workflow tracking — introduces full AI intelligence to guide users through workflows, commands, and project context
+2. **Module Ecosystem Expansion**: bmad-builder, CIS (Creative Intelligence Suite), and Game Dev Studio moved to separate repositories for focused development
+3. **Installer Consolidation**: Unified installer architecture with standardized command naming (`bmad-dash-case.md` or `bmad-*-agent-*.md`)
+4. **Windows Compatibility**: Complete migration from Inquirer.js to @clack/prompts for reliable cross-platform support
+
+### 🚀 Major Features
+
+**bmad-help - Intelligent Guidance System:**
+
+- **Replaces**: workflow-init and legacy workflow tracking
+- **AI-Powered**: Full context awareness of installed modules, workflows, agents, and commands
+- **Dynamic Discovery**: Automatically catalogs all available workflows from installed modules
+- **Intelligent Routing**: Guides users to the right workflow or agent based on their goal
+- **IDE Integration**: Generates proper IDE command files for all discovered workflows
+
+**Module Restructuring:**
+
+| Module                                | Status                                            | New Location                                            |
+| ------------------------------------- | ------------------------------------------------- | ------------------------------------------------------- |
+| **bmad-builder**                      | Near beta, with docs and walkthroughs coming soon | `bmad-code-org/bmad-builder`                            |
+| **CIS** (Creative Intelligence Suite) | Published as npm package                          | `bmad-code-org/bmad-module-creative-intelligence-suite` |
+| **Game Dev Studio**                   | Published as npm package                          | `bmad-code-org/bmad-module-game-dev-studio`             |
+
+### 🔧 Installer & CLI Improvements
+
+**UnifiedInstaller Architecture:**
+
+- All IDE installers now use a common `UnifiedInstaller` class
+- Standardized command naming conventions:
+  - Workflows: `bmad-module-workflow-name.md`
+  - Agents: `bmad-module-agent-name.md`
+  - Tasks: `bmad-task-name.md`
+  - Tools: `bmad-tool-name.md`
+- External module installation from npm with progress indicators
+- Module removal on unselect with confirmation
+
+**Windows Compatibility Fix:**
+
+- Replaced Inquirer.js with @clack/prompts to fix arrow key navigation issues on Windows
+- All 91 installer workflows migrated to new prompt system
+
+### 📚 Documentation Updates
+
+**Significant docsite improvements:**
+
+- Interactive workflow guide page (`/workflow-guide`) with track selector
+- TEA documentation restructured using Diátaxis framework (25 docs)
+- Style guide optimized for LLM readers (367 lines, down from 767)
+- Glossary rewritten using table format (123 lines, down from 373)
+- README overhaul with numbered command flows and prominent `/bmad-help` callout
+- New workflow map diagram with interactive HTML
+- New editorial review tasks for document quality
+- E2E testing methodology for Game Dev Studio
+
+More documentation updates coming soon.
+
+### 🐛 Bug Fixes
+
+- Fixed TodoMVC URL references to include `/dist/` path
+- Fixed glob pattern normalization for Windows compatibility
+- Fixed YAML indentation in kilo.js customInstructions field
+- Fixed stale path references in check-implementation-readiness workflow
+- Fixed sprint-status.yaml sync in correct-course workflow
+- Fixed web bundler entry point reference
+- Fixed mergeModuleHelpCatalogs ordering after generateManifests
+
+### 📊 Statistics
+
+- **91 commits** since alpha.23
+- **969 files changed** (+23,716 / -91,509 lines)
+- **Net reduction of ~67,793 lines** through cleanup and consolidation
+- **3 major modules** moved to separate repositories
+- **Complete installer refactor** for standardization
+
+---
+
+## [6.0.0-alpha.23]
+
+**Release: January 11, 2026**
+
+### 🌟 Key Highlights
+
+1. **Astro/Starlight Documentation Platform**: Complete migration from Docusaurus to modern Astro+Starlight for superior performance and customization
+2. **Diataxis Framework Implementation**: Professional documentation restructuring with tutorials, how-to guides, explanations, and references
+3. **Workflow Creator & Validator**: Powerful new tools for workflow creation with subprocess support and PRD validation
+4. **TEA Documentation Expansion**: Comprehensive testing documentation with cheat sheets, MCP enhancements, and API testing patterns
+5. **Brainstorming Revolution**: Research-backed procedural rigor with 100+ idea goal and anti-bias protocols
+6. **Cursor IDE Modernization**: Refactored from rules-based to command-based architecture for better IDE integration
+
+### 📚 Documentation Platform Revolution
+
+**Astro/Starlight Migration:**
+
+- **From Docusaurus to Astro**: Complete platform migration for improved performance, better customization, and modern tooling
+- **Starlight Theme**: Professional documentation theme with dark mode default and responsive design
+- **Build Pipeline Overhaul**: New build-docs.js orchestrates link checking, artifact generation, and Astro build
+- **LLM-Friendly Documentation**: Generated llms.txt and llms-full.txt for AI agent discoverability
+- **Downloadable Source Bundles**: bmad-sources.zip and bmad-prompts.zip for offline use
+
+**Diataxis Framework Implementation:**
+
+- **Four Content Types**: Professional separation into tutorials, how-to guides, explanations, and references
+- **21 Files Migrated**: Phase 1 migration of core documentation to Diataxis structure
+- **42+ Focused Documents**: Phase 2 split of large legacy files into manageable pieces
+- **FAQ Restructuring**: 7 topic-specific FAQ files with standardized format
+- **Tutorial Style Guide**: Comprehensive documentation standards for consistent content creation
+
+**Link Management & Quality:**
+
+- **Site-Relative Links**: Converted 217 links to repo-relative format (/docs/path/file.md)
+- **Link Validation Tools**: New validate-doc-links.js and fix-doc-links.js for maintaining link integrity
+- **Broken Link Fixes**: Resolved ~50 broken internal links across documentation
+- **BMad Acronym Standardization**: Consistent use of "BMad" (Breakthrough Method of Agile AI Driven Development)
+- **SEO Optimization**: Absolute URLs in AI meta tags for better web crawler discoverability
+
+### 🔧 Workflow Creator & Validator (Major Feature)
+
+**Workflow Creation Tool:**
+
+- **Subprocess Support**: Advanced workflows can now spawn subprocesses for complex operations
+- **PRD Validation Step**: New validation step ensures PRD quality before workflow execution
+- **Trimodal Workflow Creation**: Three-mode workflow generation system
+- **Quadrivariate Module Workflow**: Four-variable workflow architecture for enhanced flexibility
+- **Path Violation Checks**: Validator ensures workflows don't violate path constraints
+- **Max Parallel Mode POC**: Proof-of-concept for parallel workflow validation
+
+**Workflow Quality Improvements:**
+
+- **PRD Trimodal Compliance**: PRD workflow now follows trimodal standards
+- **Standardized Step Formatting**: Consistent markdown formatting across workflow and PRD steps
+- **Better Suggested Next Steps**: Improved workflow completion guidance
+- **Variable Naming Standardization**: {project_root} → {project-root} across all workflows
+
+### 🧪 TEA Documentation Expansion
+
+**Comprehensive Testing Guides:**
+
+- **Cheat Sheets**: Quick reference guides for common testing scenarios
+- **MCP Enhancements**: Model Context Protocol improvements for testing workflows
+- **API Testing Patterns**: Best practices for API testing documentation
+- **Design Philosophy Callout**: Clear explanation of TEA's design principles
+- **Context Engineering Glossary**: New glossary entry defining context engineering concepts
+- **Fragment Count Updates**: Accurate documentation of TEA workflow components
+- **Playwright Utils Examples**: Updated code examples for playwright-utils integration
+
+### 💡 Brainstorming Workflow Overhaul
+
+**Research-Backed Procedural Rigor:**
+
+- **100+ Idea Goal**: Emphasis on quantity-first approach to unlock better quality ideas
+- **Anti-Bias Protocol**: Domain pivot every 10 ideas to reduce cognitive biases
+- **Chain-of-Thought Requirements**: Reasoning before idea generation
+- **Simulated Temperature**: Prompts for higher divergence in ideation
+- **Standardized Idea Format**: Quality control template for consistent output
+- **Energy Checkpoints**: Multiple continuation options to maintain creative flow
+
+**Exploration Menu Improvements:**
+
+- **Letter-Based Navigation**: [K/T/A/B/C] options instead of numbers for clarity
+- **Keep/Try/Advanced/Break/Continue**: Clear action options for idea refinement
+- **Universal Facilitation Rules**: Consistent guidelines across all brainstorming steps
+- **Quality Growth Enforcement**: Balance between quantity and quality metrics
+
+### 🖥️ Cursor IDE Modernization
+
+**Command-Based Architecture:**
+
+- **From Rules to Commands**: Complete refactor from rules-based to command-based system
+- **Command Generation**: Automatic generation of task and tool commands
+- **Commands Directory**: New `.cursor/commands/bmad/` structure for generated commands
+- **Cleanup Integration**: Automatic cleanup of old BMAD commands alongside rules
+- **Enhanced Logging**: Better feedback on agents, tasks, tools, and workflow commands generated
+
+### 🤖 Agent System Improvements
+
+**Agent Builder & Validation:**
+
+- **hasSidecar Field**: All agents now indicate sidecar support (true/false)
+- **Validation Enforcement**: hasSidecar now required in agent validation
+- **Better Brownfield Documentation**: Improved brownfield project documentation
+- **Agent Builder Updates**: Agent builder now uses hasSidecar field
+- **Agent Editor Integration**: Editor workflow respects hasSidecar configuration
+
+### 🐛 Bug Fixes & Quality Improvements
+
+**Critical Fixes:**
+
+- **Windows Line Endings**: Resolved CRLF issues causing cross-platform problems
+- **Code-Review File Filtering**: Fixed code-review picking up non-application files
+- **ERR_REQUIRE_ESM Resolution**: Dynamic import for inquirer v9+ compatibility
+- **Project-Context Conflicts**: Allow full project-context usage with conflict precedence
+- **Workflow Paths**: Fixed paths for workflow and sprint status files
+- **Missing Scripts**: Fixed missing scripts from installation
+
+**Workflow & Variable Fixes:**
+
+- **Variable Naming**: Standardized from {project_root} to {project-root} across CIS, BMGD, and BMM modules
+- **Workflow References**: Fixed broken .yaml → .md workflow references
+- **Advanced Elicitation Variables**: Fixed undefined variables in brainstorming
+- **Dependency Format**: Corrected dependency format and added missing frontmatter
+
+**Code Quality:**
+
+- **Dependency Updates**: Bumped qs from 6.14.0 to 6.14.1
+- **CodeRabbit Integration**: Enabled auto-review on new PRs
+- **TEA Fragment Counts**: Updated fragment counts for accuracy
+- **Documentation Links**: Fixed Discord channel references (#general-dev → #bmad-development)
+
+### 🚀 Installation & CLI Improvements
+
+**Installation Enhancements:**
+
+- **Workflow Exclusion**: Ability to exclude workflows from being added as commands
+- **Example Workflow Protection**: Example workflow in workflow builder now excluded from tools
+- **CNAME Configuration**: Added CNAME file for custom domain support
+- **Script Fixes**: All scripts now properly included in installation
+
+### 📊 Statistics
+
+- **27 commits** since alpha.22
+- **217 documentation links** converted to site-relative format
+- **42+ focused documents** created from large legacy files
+- **7 topic-specific FAQ files** with standardized formatting
+- **Complete documentation platform** migrated from Docusaurus to Astro/Starlight
+- **Major workflow tools** added: Creator, Validator with subprocess support
+- **Brainstorming workflow** overhauled with research-backed rigor
+
+---
+
 ## [6.0.0-alpha.22]
 
 **Release: December 31, 2025**
