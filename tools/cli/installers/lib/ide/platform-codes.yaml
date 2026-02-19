@@ -89,14 +89,7 @@ platforms:
     preferred: false
     category: ide
     description: "GitHub's AI pair programmer"
-    installer:
-      targets:
-        - target_dir: .github/agents
-          template_type: copilot_agents
-          artifact_types: [agents]
-        - target_dir: .vscode
-          template_type: vscode_settings
-          artifact_types: []
+    # No installer config - uses custom github-copilot.js
 
   iflow:
     name: "iFlow"
@@ -114,12 +107,14 @@ platforms:
     description: "AI coding platform"
     # No installer config - uses custom kilo.js (creates .kilocodemodes file)
 
-  kiro-cli:
-    name: "Kiro CLI"
+  kiro:
+    name: "Kiro"
     preferred: false
-    category: cli
-    description: "Kiro command-line interface"
-    # No installer config - uses custom kiro-cli.js (YAML→JSON conversion)
+    category: ide
+    description: "Amazon's AI-powered IDE"
+    installer:
+      target_dir: .kiro/steering
+      template_type: kiro
 
   opencode:
     name: "OpenCode"
@@ -127,8 +122,13 @@ platforms:
     category: ide
     description: "OpenCode terminal coding assistant"
     installer:
-      target_dir: .opencode/command
-      template_type: opencode
+      targets:
+        - target_dir: .opencode/agent
+          template_type: opencode
+          artifact_types: [agents]
+        - target_dir: .opencode/command
+          template_type: opencode
+          artifact_types: [workflows, tasks, tools]
 
   qwen:
     name: "QwenCoder"
