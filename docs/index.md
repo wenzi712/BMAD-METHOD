@@ -3,7 +3,7 @@ title: Welcome to the BMad Method
 description: AI-driven development framework with specialized agents, guided workflows, and intelligent planning
 ---
 
-The BMad Method (**B**reakthrough **M**ethod of **A**gile AI **D**riven Development) is an AI-driven development framework module within the BMad Method Ecosystem that helps you build software through the whole process from ideation and planning all the way through agentic implementation. It provides specialized AI agents, guided workflows, and intelligent planning that adapts to your project's complexity, whether you're fixing a bug or building an enterprise platform.
+The BMad Method (**B**uild **M**ore **A**rchitect **D**reams) is an AI-driven development framework module within the BMad Method Ecosystem that helps you build software through the whole process from ideation and planning all the way through agentic implementation. It provides specialized AI agents, guided workflows, and intelligent planning that adapts to your project's complexity, whether you're fixing a bug or building an enterprise platform.
 
 If you're comfortable working with AI coding assistants like Claude, Cursor, or GitHub Copilot, you're ready to get started.
 
@@ -19,7 +19,7 @@ The fastest way to understand BMad is to try it.
 - **[Workflow Map](./reference/workflow-map.md)** — Visual overview of BMM phases, workflows, and context management
 
 :::tip[Just Want to Dive In?]
-Install BMad and run `/bmad-help` — it will guide you through everything based on your project and installed modules.
+Install BMad and use the `bmad-help` skill — it will guide you through everything based on your project and installed modules.
 :::
 
 ## How to Use These Docs
@@ -33,7 +33,7 @@ These docs are organized into four sections based on what you're trying to do:
 | **Explanation**   | Understanding-oriented. Deep dives into concepts and architecture. Read when you want to know *why*.       |
 | **Reference**     | Information-oriented. Technical specifications for agents, workflows, and configuration.                   |
 
-## Extend and Customize
+## Expand and Customize
 
 Want to expand BMad with your own agents, workflows, or modules? The **[BMad Builder](https://bmad-builder-docs.bmad-method.org/)** provides the framework and tools for creating custom extensions, whether you're adding new capabilities to BMad or building entirely new modules from scratch.
 
