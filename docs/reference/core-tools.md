@@ -18,6 +18,7 @@ Run any core tool by typing its skill name (e.g., `bmad-help`) in your IDE. No a
 | [`bmad-help`](#bmad-help) | Task | Get context-aware guidance on what to do next |
 | [`bmad-brainstorming`](#bmad-brainstorming) | Workflow | Facilitate interactive brainstorming sessions |
 | [`bmad-party-mode`](#bmad-party-mode) | Workflow | Orchestrate multi-agent group discussions |
+| [`bmad-forge-idea`](#bmad-forge-idea) | Workflow | Pressure-test an idea until it hardens, proves out, or dies cheaply |
 | [`bmad-spec`](#bmad-spec) | Workflow | Distill any intent input into a SPEC kernel and companions, the canonical contract for downstream work |
 | [`bmad-advanced-elicitation`](#bmad-advanced-elicitation) | Task | Push LLM output through iterative refinement methods |
 | [`bmad-review-adversarial-general`](#bmad-review-adversarial-general) | Task | Cynical review that finds what's missing and what's wrong |
@@ -70,7 +71,7 @@ Run any core tool by typing its skill name (e.g., `bmad-help`) in your IDE. No a
 
 **Input:** Brainstorming topic or problem statement, optional context file
 
-**Output:** `brainstorming-session-{date}.md` with all generated ideas
+**Output:** a self-contained `brainstorm.html` keepsake of the session, an optional `brainstorm-intent.md` for downstream skills, and a `.memlog.md` session record
 
 :::note[Quantity Target]
 The magic happens in ideas 50–100. The workflow encourages generating 100+ ideas before organization.
@@ -98,6 +99,28 @@ The magic happens in ideas 50–100. The workflow encourages generating 100+ ide
 
 **Output:** Real-time multi-agent conversation with maintained agent personalities
 
+## bmad-forge-idea
+
+**Pressure-test an idea until it hardens, proves out, or dies cheaply.** — An adversarial interrogator drives a half-formed idea one question at a time, bringing two characters to every branch, until what survives is something you can act on with conviction.
+
+**Use it when:**
+
+- You hold an idea and want it stress-tested before you invest in it
+- You want an honest read on whether to kill it
+- You need a thinking partner that pushes back instead of agreeing
+
+**How it works:**
+
+1. Establishes the goal up front and steers the questioning to match it
+2. Works one question at a time in dependency order, putting a recommended answer on the table to push against
+3. Brings two voices to every branch — one from your installed roster, one conjured by the topic
+4. Challenges fuzzy terms and tests claims against an existing project's material
+5. Lands as Hardened, Killed, or Clearer, with a self-contained report you can keep
+
+**Input:** The idea, in any domain — a feature, a business model, a research hypothesis, a life decision
+
+**Output:** A `forged-idea.md` distillate when an idea hardens (optional), plus a `forge-report.html` keepsake every run
+
 ## bmad-spec
 
 **Distill any intent input into the canonical SPEC contract for downstream work.** Takes a brief, PRD, GDD, RFC, brain dump, transcript, UX folder, or mixed multi-source input and produces a `SPEC.md` carrying the five-field kernel (Why, Capabilities, Constraints, Non-goals, Success signal) plus companion files for load-bearing content that does not fit the kernel.
@@ -107,13 +130,15 @@ The magic happens in ideas 50–100. The workflow encourages generating 100+ ide
 - You need to lock the WHAT before the HOW for any kind of work (software, game design, research, editorial, policy, business).
 - You want a LLM Optimized succinct, no-fluff contract that downstream skills can consume without re-reading every upstream artifact.
 - You want to validate or update an existing spec.
+- You want to break a spec into an ordered list of stories for autonomous dispatch.
 
 **How it works:**
 
 1. Reads the input and any ancillary linked materials.
 2. Distills into the five-field kernel using a configurable template; routes overflow into appropriately-named companions.
 3. Runs a two-pass self-validate (coherence rules, then preservation of every load-bearing source claim).
-4. Writes `SPEC.md`, sibling companions, and a `.decision-log.md` under `{output_folder}/specs/spec-{slug}/`.
+4. Writes `SPEC.md`, sibling companions, and a `.memlog.md` under `{output_folder}/specs/spec-{slug}/`.
+5. **Story Breakdown** (optional, interactive-only): on direct request, or as a once-per-run offer when the input reads as multiple independently shippable slices, walks the capabilities and constraints with you and writes `stories.yaml`.
 
 Spec Law enforces eight rules: capabilities carry both intent and success; intents are WHAT not HOW; constraints actually bend decisions; non-goals are explicit; success signals are concrete; capability IDs are stable; every load-bearing source claim is preserved; prose is lean.
 
@@ -123,10 +148,14 @@ Spec Law enforces eight rules: capabilities carry both intent and success; inten
 - `slug` (optional) — required only when input is sparse and no slug is derivable from a source filename.
 - `target_spec_path` (optional) — set to update an existing spec instead of creating a new one.
 
-**Output:** Spec folder containing `SPEC.md`, any companion files, and a `.decision-log.md`. Headless callers receive a JSON response with the result status and the list of files written or modified.
+**Output:** Spec folder containing `SPEC.md`, any companion files, a `.memlog.md`, and — if Story Breakdown ran — `stories.yaml`. Headless callers receive a JSON response with the result status and the list of files written or modified.
 
 :::note[Mutation contract]
 `bmad-spec` is the only writer of `SPEC.md` and of spec-authored companions. Other skills produce their own native artifacts and invoke `bmad-spec` headless when they need to express intent as the canonical contract or propose updates.
+:::
+
+:::note[stories.yaml]
+Optional, interactive-only output of Story Breakdown — never produced in headless mode, and skipped in interactive mode too unless requested or offered. A sibling of `SPEC.md`, not a companion: a flat list, one entry per story, in strict execution order (list order — there is no `depends_on` field). Each entry has `id`, `title`, `description`, and two independent, caller-only booleans set by the human at breakdown time — `spec_checkpoint` (pause for human review between planning and implementation) and `done_checkpoint` (pause after the story completes) — plus a free-text `invoke_dev_with` dispatch note. An `id` is pinned once that story's spec file exists; unstarted stories may still be renumbered or reordered. `bmad-dev-auto` reads a story's `title`/`description` via folder+id dispatch — see [Autonomous Development Loops](./dev-auto.md).
 :::
 
 ## bmad-advanced-elicitation
@@ -198,6 +227,8 @@ Spec Law enforces eight rules: capabilities carry both intent and success; inten
 - `also_consider` (optional) — Additional areas to keep in mind
 
 **Output:** JSON array of findings, each with `location`, `trigger_condition`, `guard_snippet`, and `potential_consequence`
+
+**Deletion check (secondary):** When the diff removes meaningful code, the hunter also flags deletions that drop behavior or contracts without replacement, tagged `kind: deletion` in the same array.
 
 :::note[Complementary Reviews]
 Run both `bmad-review-adversarial-general` and `bmad-review-edge-case-hunter` together for orthogonal coverage. The adversarial review catches quality and completeness issues; the edge case hunter catches unhandled paths.

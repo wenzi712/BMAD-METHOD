@@ -235,6 +235,49 @@ async function runTests() {
   console.log('');
 
   // ============================================================
+  // Test 6b: Antigravity CLI Native Skills Install
+  // ============================================================
+  console.log(`${colors.yellow}Test Suite 6b: Antigravity CLI Native Skills${colors.reset}\n`);
+
+  try {
+    clearCache();
+    const platformCodes6b = await loadPlatformCodes();
+    const antigravityCliInstaller = platformCodes6b.platforms['antigravity-cli']?.installer;
+
+    assert(antigravityCliInstaller?.target_dir === '.agents/skills', 'Antigravity CLI target_dir uses shared skills path');
+    assert(
+      antigravityCliInstaller?.global_target_dir === '~/.gemini/antigravity-cli/skills',
+      'Antigravity CLI global_target_dir uses the CLI-specific skills path',
+    );
+    assert(
+      antigravityCliInstaller?.global_target_dir !== platformCodes6b.platforms.antigravity?.installer?.global_target_dir,
+      'Antigravity CLI global_target_dir differs from the Antigravity IDE so installs never collide',
+    );
+
+    const tempProjectDir6b = await fs.mkdtemp(path.join(os.tmpdir(), 'bmad-antigravity-cli-test-'));
+    const installedBmadDir6b = await createTestBmadFixture();
+
+    const ideManager6b = new IdeManager();
+    await ideManager6b.ensureInitialized();
+    const result6b = await ideManager6b.setup('antigravity-cli', tempProjectDir6b, installedBmadDir6b, {
+      silent: true,
+      selectedModules: ['bmm'],
+    });
+
+    assert(result6b.success === true, 'Antigravity CLI setup succeeds against temp project');
+
+    const skillFile6b = path.join(tempProjectDir6b, '.agents', 'skills', 'bmad-master', 'SKILL.md');
+    assert(await fs.pathExists(skillFile6b), 'Antigravity CLI install writes SKILL.md directory output');
+
+    await fs.remove(tempProjectDir6b);
+    await fs.remove(path.dirname(installedBmadDir6b));
+  } catch (error) {
+    assert(false, 'Antigravity CLI native skills migration test succeeds', error.message);
+  }
+
+  console.log('');
+
+  // ============================================================
   // Test 7: Auggie Native Skills Install
   // ============================================================
   console.log(`${colors.yellow}Test Suite 7: Auggie Native Skills${colors.reset}\n`);
@@ -445,6 +488,41 @@ async function runTests() {
   console.log('');
 
   // Test 12: Removed — ancestor conflict check no longer applies (no IDE inherits skills from parent dirs)
+
+  // ============================================================
+  // Test 12b: CodeWhale Native Skills Install
+  // ============================================================
+  console.log(`${colors.yellow}Test Suite 12b: CodeWhale Native Skills${colors.reset}\n`);
+
+  try {
+    clearCache();
+    const platformCodes12b = await loadPlatformCodes();
+    const codewhaleInstaller = platformCodes12b.platforms.codewhale?.installer;
+
+    assert(codewhaleInstaller?.target_dir === '.codewhale/skills', 'CodeWhale target_dir uses native skills path');
+
+    const tempProjectDir12b = await fs.mkdtemp(path.join(os.tmpdir(), 'bmad-codewhale-test-'));
+    const installedBmadDir12b = await createTestBmadFixture();
+
+    const ideManager12b = new IdeManager();
+    await ideManager12b.ensureInitialized();
+    const result12b = await ideManager12b.setup('codewhale', tempProjectDir12b, installedBmadDir12b, {
+      silent: true,
+      selectedModules: ['bmm'],
+    });
+
+    assert(result12b.success === true, 'CodeWhale setup succeeds against temp project');
+
+    const skillFile12b = path.join(tempProjectDir12b, '.codewhale', 'skills', 'bmad-master', 'SKILL.md');
+    assert(await fs.pathExists(skillFile12b), 'CodeWhale install writes SKILL.md directory output');
+
+    await fs.remove(tempProjectDir12b);
+    await fs.remove(path.dirname(installedBmadDir12b));
+  } catch (error) {
+    assert(false, 'CodeWhale native skills migration test succeeds', error.message);
+  }
+
+  console.log('');
 
   // ============================================================
   // Test 13: Cursor Native Skills Install
@@ -3232,6 +3310,304 @@ async function runTests() {
     }
   } catch (error) {
     console.log(`${colors.red}Test Suite 44 setup failed: ${error.message}${colors.reset}`);
+    console.log(error.stack);
+    failed++;
+  }
+
+  console.log('');
+
+  // ============================================================
+  // Test Suite 45: _cleanupSkillDirs prunes empty parent dirs (#empty-bmm-folders)
+  // ============================================================
+  console.log(`${colors.yellow}Test Suite 45: cleanup prunes empty skill-group dirs${colors.reset}\n`);
+
+  let root45;
+  try {
+    root45 = await fs.mkdtemp(path.join(os.tmpdir(), 'bmad-cleanup-test-'));
+    const bmadDir45 = path.join(root45, '_bmad');
+    await fs.ensureDir(path.join(bmadDir45, '_config'));
+
+    // Two skills nested under the same grouping dir (1-analysis), plus a
+    // module-level file that must survive the cleanup.
+    await fs.writeFile(
+      path.join(bmadDir45, '_config', 'skill-manifest.csv'),
+      [
+        'canonicalId,name,description,module,path',
+        '"bmad-agent-analyst","bmad-agent-analyst","fixture","bmm","_bmad/bmm/1-analysis/bmad-agent-analyst/SKILL.md"',
+        '"bmad-research","bmad-research","fixture","bmm","_bmad/bmm/1-analysis/research/bmad-research/SKILL.md"',
+        '',
+      ].join('\n'),
+    );
+    await fs.ensureDir(path.join(bmadDir45, 'bmm', '1-analysis', 'bmad-agent-analyst'));
+    await fs.writeFile(path.join(bmadDir45, 'bmm', '1-analysis', 'bmad-agent-analyst', 'SKILL.md'), 'x');
+    await fs.ensureDir(path.join(bmadDir45, 'bmm', '1-analysis', 'research', 'bmad-research'));
+    await fs.writeFile(path.join(bmadDir45, 'bmm', '1-analysis', 'research', 'bmad-research', 'SKILL.md'), 'x');
+    await fs.writeFile(path.join(bmadDir45, 'bmm', 'config.yaml'), 'module: bmm\n');
+
+    const installer45 = new Installer();
+    await installer45._cleanupSkillDirs(bmadDir45);
+
+    assert(!(await fs.pathExists(path.join(bmadDir45, 'bmm', '1-analysis'))), 'empty skill-group dir is pruned after cleanup');
+    assert(!(await fs.pathExists(path.join(bmadDir45, 'bmm', '1-analysis', 'research'))), 'empty nested skill-group dir is pruned');
+    assert(await fs.pathExists(path.join(bmadDir45, 'bmm', 'config.yaml')), 'module-level files are preserved');
+    assert(await fs.pathExists(bmadDir45), 'bmad root is never removed');
+  } catch (error) {
+    console.log(`${colors.red}Test Suite 45 setup failed: ${error.message}${colors.reset}`);
+    console.log(error.stack);
+    failed++;
+  } finally {
+    if (root45) await fs.remove(root45).catch(() => {});
+  }
+
+  console.log('');
+
+  // ============================================================
+  // Test Suite 46: uv environment check (version parsing + messaging)
+  // ============================================================
+  console.log(`${colors.yellow}Test Suite 46: uv-check version parsing and messaging${colors.reset}\n`);
+
+  try {
+    const { parseUvVersion, detectUv } = require('../tools/installer/core/uv-check');
+
+    // Version parsing
+    const plain = parseUvVersion('uv 0.5.31');
+    assert(plain && plain.major === 0 && plain.minor === 5 && plain.patch === 31, 'parses "uv 0.5.31"');
+    const brew = parseUvVersion('uv 0.5.31 (Homebrew 2025-02-12)');
+    assert(brew && brew.raw === '0.5.31', 'parses uv version with build suffix');
+    const noPatch = parseUvVersion('uv 1.2');
+    assert(noPatch && noPatch.patch === 0, 'missing patch defaults to 0');
+    assert(parseUvVersion('') === null, 'empty output returns null');
+    assert(parseUvVersion('command not found: uv') === null, 'non-version output returns null');
+    assert(parseUvVersion(null) === null, 'null output returns null');
+
+    // Detection smoke test — must not throw; result is null or well-formed.
+    const detectedUv = detectUv();
+    assert(detectedUv === null || typeof detectedUv.version.raw === 'string', 'detectUv returns null or a well-formed result');
+
+    // checkUvEnvironment branch coverage — stub detection + prompts so the
+    // assertions are deterministic regardless of whether uv is installed.
+    const uvCheck = require('../tools/installer/core/uv-check');
+    const promptsModule = require('../tools/installer/prompts');
+    const realUv = { detectUv: uvCheck.detectUv, log: promptsModule.log, note: promptsModule.note };
+    const stubUv = (detectResult) => {
+      const seen = { success: [], warn: [], note: [] };
+      uvCheck.detectUv = () => detectResult;
+      promptsModule.log = {
+        success: async (m) => void seen.success.push(m),
+        warn: async (m) => void seen.warn.push(m),
+        info: async () => {},
+        error: async () => {},
+      };
+      promptsModule.note = async (m, t) => void seen.note.push(t || m);
+      return seen;
+    };
+
+    try {
+      // Branch: uv present — success, no warning.
+      let seen = stubUv({ version: { major: 0, minor: 5, patch: 31, raw: '0.5.31' } });
+      let result = await uvCheck.checkUvEnvironment();
+      assert(result.status === 'found' && seen.success.length === 1, 'uv present logs success');
+      assert(
+        seen.success[0].includes('Python UV check pass') && seen.warn.length === 0,
+        'uv present shows Python UV check pass, no warning',
+      );
+
+      // Branch: uv missing — warn + setup note, never blocks (no prompt).
+      seen = stubUv(null);
+      result = await uvCheck.checkUvEnvironment();
+      assert(result.status === 'missing' && seen.warn.length === 1, 'uv missing warns');
+      assert(seen.warn[0].includes('de facto standard'), 'uv-missing warning frames uv as the de facto standard');
+      assert(seen.note.length === 1 && seen.note[0].includes('uv'), 'uv missing shows a setup note');
+    } finally {
+      uvCheck.detectUv = realUv.detectUv;
+      promptsModule.log = realUv.log;
+      promptsModule.note = realUv.note;
+    }
+  } catch (error) {
+    console.log(`${colors.red}Test Suite 46 setup failed: ${error.message}${colors.reset}`);
+    console.log(error.stack);
+    failed++;
+  }
+
+  console.log('');
+
+  // ============================================================
+  // Test Suite 47: WSL shell using Windows Node guard
+  // ============================================================
+  console.log(`${colors.yellow}Test Suite 47: WSL Windows Node guard${colors.reset}\n`);
+
+  try {
+    const wslNodeCheck = require('../tools/installer/core/wsl-node-check');
+
+    let detection = wslNodeCheck.detectWindowsNodeFromWsl({
+      platform: 'win32',
+      env: { WSL_DISTRO_NAME: 'Ubuntu-26.04' },
+      cwd: String.raw`C:\Windows`,
+      execPath: String.raw`C:\Program Files\nodejs\node.exe`,
+    });
+    assert(detection.isMismatch === true, 'detects Windows Node launched from WSL via WSL_DISTRO_NAME');
+
+    detection = wslNodeCheck.detectWindowsNodeFromWsl({
+      platform: 'win32',
+      env: { PWD: '/home/devuser/projects/md2pdf' },
+      cwd: String.raw`\\wsl.localhost\Ubuntu-26.04\home\devuser\projects\md2pdf`,
+      execPath: String.raw`C:\Program Files\nodejs\node.exe`,
+    });
+    assert(detection.isMismatch === true, 'detects Windows Node launched from WSL via Linux PWD / WSL UNC cwd');
+
+    detection = wslNodeCheck.detectWindowsNodeFromWsl({
+      platform: 'win32',
+      env: {},
+      cwd: String.raw`\\wsl$\Ubuntu-26.04\home\devuser\projects\md2pdf`,
+      execPath: String.raw`C:\Program Files\nodejs\node.exe`,
+    });
+    assert(detection.isMismatch === true, 'detects Windows Node launched from WSL via legacy WSL UNC cwd');
+
+    detection = wslNodeCheck.detectWindowsNodeFromWsl({
+      platform: 'linux',
+      env: { WSL_DISTRO_NAME: 'Ubuntu-26.04', PWD: '/home/devuser/projects/md2pdf' },
+      cwd: '/home/devuser/projects/md2pdf',
+      execPath: '/usr/bin/node',
+    });
+    assert(detection.isMismatch === false, 'allows native Linux Node inside WSL');
+
+    detection = wslNodeCheck.detectWindowsNodeFromWsl({
+      platform: 'win32',
+      env: { PWD: String.raw`C:\Users\devuser\project` },
+      cwd: String.raw`C:\Users\devuser\project`,
+      execPath: String.raw`C:\Program Files\nodejs\node.exe`,
+    });
+    assert(detection.isMismatch === false, 'allows normal Windows Node outside WSL');
+
+    detection = wslNodeCheck.detectWindowsNodeFromWsl({
+      platform: 'win32',
+      env: { PWD: '/c/Users/devuser/project' },
+      cwd: String.raw`C:\Users\devuser\project`,
+      execPath: String.raw`C:\Program Files\nodejs\node.exe`,
+    });
+    assert(detection.isMismatch === false, 'allows Git Bash Windows-drive PWD outside WSL');
+
+    detection = wslNodeCheck.detectWindowsNodeFromWsl({
+      platform: 'win32',
+      env: { PWD: '/cygdrive/c/Users/devuser/project' },
+      cwd: String.raw`C:\Users\devuser\project`,
+      execPath: String.raw`C:\Program Files\nodejs\node.exe`,
+    });
+    assert(detection.isMismatch === false, 'allows Cygwin Windows-drive PWD outside WSL');
+
+    const message = wslNodeCheck.formatWindowsNodeFromWslMessage({
+      isMismatch: true,
+      reason: 'WSL_DISTRO_NAME is set',
+      execPath: String.raw`C:\Program Files\nodejs\node.exe`,
+    });
+    assert(message.includes('Install Node.js inside WSL'), 'guard message tells user to install Node.js inside WSL');
+    assert(message.includes(String.raw`C:\Program Files\nodejs\node.exe`), 'guard message includes detected Windows Node path');
+
+    const promptsModule = require('../tools/installer/prompts');
+    const real = {
+      detectWindowsNodeFromWsl: wslNodeCheck.detectWindowsNodeFromWsl,
+      log: promptsModule.log,
+      exit: process.exit,
+    };
+    const seen = { errors: [], exit: [] };
+    wslNodeCheck.detectWindowsNodeFromWsl = () => ({
+      isMismatch: true,
+      reason: 'WSL_INTEROP is set',
+      execPath: String.raw`C:\Program Files\nodejs\node.exe`,
+    });
+    promptsModule.log = {
+      error: async (m) => void seen.errors.push(m),
+      info: async () => {},
+      success: async () => {},
+      warn: async () => {},
+      message: async () => {},
+      step: async () => {},
+    };
+    process.exit = (code) => {
+      seen.exit.push(code);
+      throw new Error('__stub_exit__');
+    };
+
+    try {
+      let threw = false;
+      try {
+        await wslNodeCheck.checkWindowsNodeFromWsl();
+      } catch (error) {
+        threw = error.message === '__stub_exit__';
+      }
+      assert(threw && seen.exit[0] === 1, 'guard exits with code 1 when Windows Node is launched from WSL');
+      assert(seen.errors[0].includes('Windows Node.js was launched from a WSL shell'), 'guard logs the mismatch explanation');
+    } finally {
+      wslNodeCheck.detectWindowsNodeFromWsl = real.detectWindowsNodeFromWsl;
+      promptsModule.log = real.log;
+      process.exit = real.exit;
+    }
+  } catch (error) {
+    console.log(`${colors.red}Test Suite 47 setup failed: ${error.message}${colors.reset}`);
+    console.log(error.stack);
+    failed++;
+  }
+
+  console.log('');
+
+  // ============================================================
+  // Test Suite 48: registry module-code aliases (renamed modules)
+  // ============================================================
+  console.log(`${colors.yellow}Test Suite 48: registry module-code aliases${colors.reset}\n`);
+
+  try {
+    const { ExternalModuleManager } = require('../tools/installer/modules/external-manager');
+    const originalLoadConfig48 = ExternalModuleManager.prototype.loadExternalModulesConfig;
+
+    ExternalModuleManager.prototype.loadExternalModulesConfig = async function () {
+      return {
+        modules: [
+          {
+            code: 'bmad-loop',
+            aliases: ['bauto'],
+            name: 'BMad Loop',
+            repository: 'https://example.com/bmad-loop.git',
+            module_definition: 'src/automator/data/skills/bmad-loop-setup/assets/module.yaml',
+          },
+          {
+            code: 'cis',
+            name: 'BMad Creative Intelligence Suite',
+            repository: 'https://example.com/cis.git',
+            module_definition: 'src/module.yaml',
+          },
+        ],
+      };
+    };
+
+    try {
+      const manager48 = new ExternalModuleManager();
+
+      const byCanonical = await manager48.getModuleByCode('bmad-loop');
+      assert(byCanonical && byCanonical.code === 'bmad-loop', 'getModuleByCode resolves the canonical code directly');
+
+      const byAlias = await manager48.getModuleByCode('bauto');
+      assert(byAlias && byAlias.code === 'bmad-loop', 'getModuleByCode resolves a prior code via aliases');
+
+      const noAliasModule = await manager48.getModuleByCode('cis');
+      assert(noAliasModule && noAliasModule.code === 'cis', 'getModuleByCode is unaffected for modules with no aliases');
+
+      const unknown = await manager48.getModuleByCode('nonexistent-code');
+      assert(unknown === null, 'getModuleByCode returns null for a code that matches nothing, including no alias');
+
+      assert((await manager48.resolveCanonicalCode('bauto')) === 'bmad-loop', 'resolveCanonicalCode maps an alias to its canonical code');
+      assert(
+        (await manager48.resolveCanonicalCode('bmad-loop')) === 'bmad-loop',
+        'resolveCanonicalCode is a no-op for an already-canonical code',
+      );
+      assert(
+        (await manager48.resolveCanonicalCode('some-custom-module')) === 'some-custom-module',
+        'resolveCanonicalCode passes through a code that matches no registry entry (e.g. a custom module)',
+      );
+    } finally {
+      ExternalModuleManager.prototype.loadExternalModulesConfig = originalLoadConfig48;
+    }
+  } catch (error) {
+    console.log(`${colors.red}Test Suite 48 setup failed: ${error.message}${colors.reset}`);
     console.log(error.stack);
     failed++;
   }

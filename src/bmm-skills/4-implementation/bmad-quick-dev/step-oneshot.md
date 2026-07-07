@@ -8,6 +8,8 @@ deferred_work_file: '{implementation_artifacts}/deferred-work.md'
 
 - YOU MUST ALWAYS SPEAK OUTPUT in your Agent communication style with the config `{communication_language}`
 - NEVER auto-push.
+- All review subagents must run at the same model capability as the current session.
+- Run subagents synchronously: launch them together, then wait for all results before continuing.
 
 ## INSTRUCTIONS
 
@@ -19,14 +21,23 @@ Implement the clarified intent directly.
 
 ### Review
 
-Invoke the `bmad-review-adversarial-general` skill in a subagent with the changed files. The subagent gets NO conversation context — to avoid anchoring bias. Launch at the same model capability as the current session. If no sub-agents are available, write the changed files to a review prompt file in `{implementation_artifacts}` and HALT. Ask the human to run the review in a separate session and paste back the findings.
+The review layers for this route are `{workflow.oneshot_review_layers}`, resolved during activation.
+
+Skip every layer whose `instruction` is empty or missing, and every layer whose `when` condition (if present) does not hold. If no layers remain, HALT with status `blocked` and blocking condition `no active review layers`. Execute all remaining layers in parallel wherever their execution methods allow, following each layer's `instruction` verbatim after substituting any runtime placeholders.
+
+If a layer's instruction requires subagents and none are available, generate one review prompt file per such layer in `{implementation_artifacts}` and HALT. Ask the human to run each in a separate session and paste back the findings.
 
 ### Classify
 
 Deduplicate all review findings. Three categories only:
 
 - **patch** — trivially fixable. Auto-fix immediately.
-- **defer** — pre-existing issue not caused by this change. Append to `{deferred_work_file}`.
+- **defer** — pre-existing issue not caused by this change. Append one new entry to `{deferred_work_file}` using this format. Do not modify existing entries or look for duplicates.
+  ```markdown
+  - source_spec: `{spec_file}`
+    summary: <one sentence>
+    evidence: <why this is real>
+  ```
 - **reject** — noise. Drop silently.
 
 If a finding is caused by this change but too significant for a trivial patch, HALT and present it to the human for decision before proceeding.

@@ -133,7 +133,12 @@ class UI {
     for (const moduleId of installedModuleIds) {
       if (moduleId === 'core') continue;
       if (!selectedSet.has(moduleId) && !options.preserveUnselected) continue;
-      if (officialCodes.has(moduleId)) continue;
+      // Resolve a possibly-renamed module code (e.g. `bauto` -> `bmad-loop`)
+      // before checking availability, so a registry rename doesn't freeze
+      // the install here the way it would have prior to the alias support
+      // in ExternalModuleManager.getModuleByCode().
+      const canonicalId = await externalManager.resolveCanonicalCode(moduleId);
+      if (officialCodes.has(canonicalId)) continue;
 
       const customSource = await customMgr.findModuleSourceByCode(moduleId, { bmadDir });
       if (!customSource) {
@@ -160,6 +165,17 @@ class UI {
     const { MessageLoader } = require('./message-loader');
     const messageLoader = new MessageLoader();
     await messageLoader.displayStartMessage();
+
+    // Probe for `uv` before any other prompts: it's becoming the de facto
+    // runner for the Python scripts BMAD workflows shell out to
+    // (`uv run <script>`), and uv provisions the interpreter itself, so it's
+    // the single thing worth checking for. The migration is still in progress
+    // (some skills still call `python3` directly), so this is informational —
+    // warn-don't-block, no ack prompt — and just points the user at setup
+    // (ideally "ask your agent to set up uv"). The installer runs in the
+    // destination environment, so probing PATH here tests the right machine.
+    const { checkUvEnvironment } = require('./core/uv-check');
+    await checkUvEnvironment();
 
     // Parse channel flags (--channel/--all-*/--next=/--pin) once. Warnings
     // are surfaced immediately so the user sees them before any git ops run.
@@ -933,25 +949,32 @@ class UI {
       }
     }
 
-    // Add external registry modules (skip built-in duplicates)
-    const externalRegistryModules = registryModules.filter((mod) => !mod.builtIn && !builtInCodes.has(mod.code));
+    // Add external registry modules (skip built-in duplicates and deprecated
+    // modules that are not already installed — deprecated modules stay visible
+    // only so existing users can continue to manage them).
+    const externalRegistryModules = registryModules.filter(
+      (mod) => !mod.builtIn && !builtInCodes.has(mod.code) && (!mod.deprecated || installedModuleIds.has(mod.code)),
+    );
     let externalRegistryEntries = [];
     if (externalRegistryModules.length > 0) {
       const spinner = await prompts.spinner();
       spinner.start('Checking latest module versions...');
 
       externalRegistryEntries = await Promise.all(
-        externalRegistryModules.map(async (mod) => ({
-          code: mod.code,
-          entry: await buildModuleEntry(
+        externalRegistryModules.map(async (mod) => {
+          const entry = await buildModuleEntry(
             mod.code,
             mod.name,
             mod.description,
             mod.defaultSelected,
             mod.url || null,
             mod.defaultChannel || null,
-          ),
-        })),
+          );
+          if (mod.deprecated && mod.deprecationMessage) {
+            entry.hint = entry.hint ? `${entry.hint} — ${mod.deprecationMessage}` : mod.deprecationMessage;
+          }
+          return { code: mod.code, entry };
+        }),
       );
 
       spinner.stop('Checked latest module versions.');

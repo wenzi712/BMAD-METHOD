@@ -102,6 +102,11 @@ class Installer {
 
       const restoreResult = await this._restoreUserFiles(paths, updateState);
 
+      // Surface any "action needed" post-install messages for installed modules
+      // (e.g. run a setup skill) and let the user acknowledge them before the
+      // final summary, so "BMAD is ready to use!" stays the last thing shown.
+      await this._displayPostInstallMessages(config, officialModules);
+
       // Render consolidated summary
       await this.renderInstallSummary(results, {
         bmadDir: paths.bmadDir,
@@ -419,7 +424,32 @@ class Installer {
       const sourceDir = path.dirname(path.join(bmadDir, relativePath));
       if (await fs.pathExists(sourceDir)) {
         await fs.remove(sourceDir);
+        await this._removeEmptyParents(path.dirname(sourceDir), bmadDir);
       }
+    }
+  }
+
+  /**
+   * Remove now-empty parent directories left behind after skill dir cleanup.
+   * Walks up from dir, stopping at (and never removing) bmadDir. Best-effort:
+   * a directory that vanishes or fills in mid-walk just ends the walk.
+   * @param {string} dir - Directory to start walking up from
+   * @param {string} bmadDir - BMAD installation directory (boundary)
+   */
+  async _removeEmptyParents(dir, bmadDir) {
+    let current = dir;
+    while (true) {
+      // Path-boundary check (not a string prefix, so siblings like _bmad2 don't match).
+      const rel = path.relative(bmadDir, current);
+      if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) break;
+      try {
+        const entries = await fs.readdir(current);
+        if (entries.length > 0) break;
+        await fs.rmdir(current);
+      } catch {
+        break;
+      }
+      current = path.dirname(current);
     }
   }
 
@@ -630,6 +660,7 @@ class Installer {
   /**
    * Sync src/scripts/* → _bmad/scripts/ so shared Python scripts
    * (e.g. resolve_customization.py) are available at install time.
+   * Excludes dev-only tests and Python caches so they don't ship to users.
    * Wipes the destination first so files removed or renamed in source
    * don't linger and get recorded as installed. Also seeds
    * _bmad/custom/.gitignore on fresh installs so *.user.toml overrides
@@ -643,7 +674,12 @@ class Installer {
 
     await fs.remove(paths.scriptsDir);
     await fs.ensureDir(paths.scriptsDir);
-    await fs.copy(srcScriptsDir, paths.scriptsDir, { overwrite: true });
+    // Ship only the runtime scripts — dev-only tests and Python caches must not land in user projects.
+    const isInstallable = (srcPath) => {
+      const base = path.basename(srcPath);
+      return base !== 'tests' && base !== '__pycache__' && base !== '.pytest_cache' && !base.endsWith('.pyc');
+    };
+    await fs.copy(srcScriptsDir, paths.scriptsDir, { overwrite: true, filter: isInstallable });
     await this._trackFilesRecursive(paths.scriptsDir);
 
     const customGitignore = path.join(paths.customDir, '.gitignore');
@@ -1202,6 +1238,9 @@ class Installer {
       `    1. Launch your AI agent from your project folder`,
       `    2. Not sure what to do? Invoke the ${color.cyan('bmad-help')} skill and ask it what to do!`,
       '',
+      `    ${color.cyan('Tip:')} BMAD workflows increasingly run Python scripts via ${color.cyan('uv run')} — uv is`,
+      `    becoming the de facto standard. If you don't have it yet, ask your agent to set it up.`,
+      '',
       `    Blog, Docs and Guides: ${color.blue('https://bmadcode.com/')}`,
       `    Community: ${color.blue('https://discord.gg/gk8jAdXWmj')}`,
     );
@@ -1210,6 +1249,56 @@ class Installer {
       rounded: true,
       formatBorder: color.green,
     });
+  }
+
+  /**
+   * Display registry-defined post-install messages for the modules installed in
+   * this run. These are "action needed" notices (e.g. "run the bmad-loop-setup
+   * skill") that the user must see to finish setup. They are defined via the
+   * `post-install-message` property on a module's bmad-modules.yaml entry.
+   *
+   * Interactive installs require the user to acknowledge each message (press
+   * Enter); non-interactive (--yes / skipPrompts) installs print the message
+   * and continue without blocking, so CI/scripted installs don't hang.
+   *
+   * @param {Object} config - Install config (config.modules, config.skipPrompts)
+   * @param {Object} officialModules - OfficialModules instance (carries the registry)
+   */
+  async _displayPostInstallMessages(config, officialModules) {
+    const moduleCodes = config.modules || [];
+    if (moduleCodes.length === 0) return;
+
+    const externalManager = officialModules.externalModuleManager;
+    if (!externalManager) return;
+
+    const color = await prompts.getColor();
+
+    for (const code of moduleCodes) {
+      let moduleInfo;
+      try {
+        moduleInfo = await externalManager.getModuleByCode(code);
+      } catch {
+        continue; // Built-in modules (core/bmm) aren't in the registry — skip.
+      }
+
+      const message = moduleInfo && moduleInfo.postInstallMessage;
+      if (!message) continue;
+
+      await prompts.box(String(message).trim(), `⚑ Action needed — ${moduleInfo.name || code}`, {
+        rounded: true,
+        formatBorder: color.yellow,
+      });
+
+      // Interactive: require the user to acknowledge before continuing. Skip the
+      // blocking prompt in non-interactive installs (the message is still shown).
+      if (!config.skipPrompts) {
+        await prompts.text({
+          message: 'Press Enter to acknowledge',
+          placeholder: '',
+          default: '',
+        });
+      }
+    }
   }
 
   /**
@@ -1228,9 +1317,31 @@ class Installer {
 
     // Detect existing installation
     const existingInstall = await ExistingInstall.detect(bmadDir);
-    const installedModules = existingInstall.moduleIds;
     const configuredIdes = existingInstall.ides;
     const projectRoot = path.dirname(bmadDir);
+
+    // Resolve any legacy/aliased module codes (e.g. an install recorded as
+    // `bauto` before the registry renamed it to `bmad-loop`) to their current
+    // canonical code up front. Without this, a renamed module's old installs
+    // would fall out of `availableModuleIds` below and get silently frozen
+    // (see the `baut` → `automator` incident in CHANGELOG v6.7.1) instead of
+    // migrating forward.
+    const aliasMigrations = [];
+    const seenModuleIds = new Set();
+    const installedModules = [];
+    for (const rawId of existingInstall.moduleIds) {
+      const canonicalId = await this.externalModuleManager.resolveCanonicalCode(rawId);
+      if (canonicalId !== rawId) {
+        aliasMigrations.push({ from: rawId, to: canonicalId });
+      }
+      if (!seenModuleIds.has(canonicalId)) {
+        seenModuleIds.add(canonicalId);
+        installedModules.push(canonicalId);
+      }
+    }
+    for (const { from, to } of aliasMigrations) {
+      await prompts.log.info(`Migrating installed module '${from}' to its renamed successor '${to}'.`);
+    }
 
     // Get available modules (what we have source for)
     const availableModulesData = await new OfficialModules().listAvailable();
@@ -1375,6 +1486,18 @@ class Installer {
     };
 
     await this.install(installConfig);
+
+    // Now that the canonical module has been installed successfully, remove
+    // the stale directory left behind under its old code so the two don't
+    // coexist (e.g. `_bmad/bauto/` once `_bmad/bmad-loop/` is in place).
+    for (const { from, to } of aliasMigrations) {
+      if (!modulesToUpdate.includes(to)) continue; // new code wasn't actually installed this run
+      const oldModuleDir = path.join(bmadDir, from);
+      if (await fs.pathExists(oldModuleDir)) {
+        await fs.remove(oldModuleDir);
+        await prompts.log.success(`Removed legacy '${from}' directory after migrating to '${to}'.`);
+      }
+    }
 
     return {
       success: true,
