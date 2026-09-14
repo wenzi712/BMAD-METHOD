@@ -1,40 +1,48 @@
 name: Quality & Validation
 
-# Runs comprehensive quality checks on all PRs and pushes to main:
-# - Prettier (formatting)
-# - ESLint (linting)
-# - markdownlint (markdown quality)
-# - Installation component tests (compilation)
-# Keep this workflow aligned with `npm run quality` in `package.json`.
+# Keep this workflow aligned with `tools/quality.py`.
 
-"on":
+on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: ["**"]
+    branches: ['**']
+    # `edited` covers a base-branch change (e.g. a PR retargeted from main to dev);
+    # the job condition skips title/body edits.
+    types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
 
 jobs:
-  prettier:
+  python:
+    if: github.event.action != 'edited' || github.event.changes.base != null
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
         with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
+          enable-cache: true
 
       - name: Install dependencies
-        run: npm ci
+        run: uv sync --frozen
 
-      - name: Prettier format check
-        run: npm run format:check
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
 
-  eslint:
+      - name: Lint, validate, test
+        run: uv run --frozen pre-commit run --all-files --show-diff-on-failure
+
+  docs-site:
+    if: github.event.action != 'edited' || github.event.changes.base != null
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs-site
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,8 +50,9 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
+          node-version-file: docs-site/.nvmrc
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -51,63 +60,15 @@ jobs:
       - name: ESLint
         run: npm run lint
 
-  markdownlint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: markdownlint
-        run: npm run lint:md
-
-  docs:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Prettier format check
+        run: npm run format:check
 
       - name: Build documentation
-        # Note: build-docs.mjs runs link validation internally before building
-        run: npm run docs:build
+        # Note: docs-site/scripts/build-docs.mjs runs link validation internally before building
+        run: npm run build
 
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Validate sidebar order
+        run: npm run validate-sidebar
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Test agent compilation components
-        run: npm run test:install
-
-      - name: Validate file references
-        run: npm run validate:refs
-
-      - name: Validate skills
-        run: npm run validate:skills
+      - name: Test docs-site
+        run: npm test

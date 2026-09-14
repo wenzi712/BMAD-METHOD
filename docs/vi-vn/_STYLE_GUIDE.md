@@ -148,7 +148,7 @@ your-project/
 | --- | --- |
 | **Trang chỉ mục / landing** | `core-concepts/index.md` |
 | **Khái niệm** | `what-are-agents.md` |
-| **Tính năng** | `quick-dev.md` |
+| **Tính năng** | `build.md` |
 | **Triết lý** | `why-solutioning-matters.md` |
 | **FAQ** | `established-projects-faq.md` |
 
@@ -324,7 +324,7 @@ Starlight tạo phần điều hướng "On this page" từ các tiêu đề:
 
 Thêm ngữ cảnh in nghiêng ở đầu định nghĩa với các thuật ngữ có phạm vi hẹp:
 
-- `*Chỉ dành cho Quick Flow.*`
+- `*Chỉ dành cho đầu vào triển khai trực tiếp.*`
 - `*BMad Method/Enterprise.*`
 - `*Phase N.*`
 - `*BMGD.*`
@@ -349,7 +349,7 @@ Thêm ngữ cảnh in nghiêng ở đầu định nghĩa với các thuật ng�
 
 ### Lúc nào cũng cần kiến trúc à?
 
-Chỉ với nhánh BMad Method và Enterprise. Quick Flow bỏ qua để đi thẳng vào triển khai.
+Chỉ dành cho công việc cần kiến trúc. Công việc rõ ràng có thể đi thẳng vào implementation.
 
 ### Tôi có thể đổi kế hoạch về sau không?
 
@@ -363,8 +363,9 @@ Có. Workflow `bmad-correct-course` xử lý thay đổi phạm vi giữa chừn
 Trước khi gửi thay đổi tài liệu:
 
 ```bash
-npm run docs:fix-links            # Xem trước các sửa định dạng link
-npm run docs:fix-links -- --write # Áp dụng các sửa
-npm run docs:validate-links       # Kiểm tra link tồn tại
-npm run docs:build                # Xác minh không có lỗi build
+cd docs-site
+npm run fix-links                 # Xem trước các sửa định dạng link
+npm run fix-links -- --write      # Áp dụng các sửa
+npm run validate-links            # Kiểm tra link tồn tại
+npm run build                     # Xác minh không có lỗi build
 ```

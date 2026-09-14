@@ -148,7 +148,7 @@ votre-projet/
 |--------------------------|-------------------------------|
 | **Index/Page d’accueil** | `core-concepts/index.md`      |
 | **Concept**              | `what-are-agents.md`          |
-| **Fonctionnalité**       | `quick-dev.md`                |
+| **Fonctionnalité**       | `build.md`                |
 | **Philosophie**          | `why-solutioning-matters.md`  |
 | **FAQ**                  | `established-projects-faq.md` |
 
@@ -325,7 +325,7 @@ Starlight génère la navigation « Sur cette page » à droite à partir de
 
 Ajouter un contexte en italique au début de la définition pour les termes à portée limitée :
 
-- `*Quick Dev uniquement.*`
+- `*Implémentation en entrée directe uniquement.*`
 - `*méthode BMad/Enterprise.*`
 - `*Phase N.*`
 - `*BMGD.*`
@@ -350,7 +350,7 @@ Ajouter un contexte en italique au début de la définition pour les termes à p
 
 ### Ai-je toujours besoin d'architecture ?
 
-Uniquement pour les parcours méthode BMad et Enterprise. Quick Dev passe directement à l'implémentation.
+Uniquement pour les travaux qui bénéficient d'une architecture. Un travail clair peut entrer directement dans l'implémentation.
 
 ### Puis-je modifier mon plan plus tard ?
 
@@ -364,8 +364,9 @@ Oui. Utilisez `bmad-correct-course` pour gérer les changements de portée en co
 Avant de soumettre des modifications de documentation :
 
 ```bash
-npm run docs:fix-links            # Prévisualiser les corrections de format de liens
-npm run docs:fix-links -- --write # Appliquer les corrections
-npm run docs:validate-links       # Vérifier que les liens existent
-npm run docs:build                # Vérifier l'absence d'erreurs de build
+cd docs-site
+npm run fix-links                 # Prévisualiser les corrections de format de liens
+npm run fix-links -- --write      # Appliquer les corrections
+npm run validate-links            # Vérifier que les liens existent
+npm run build                     # Vérifier l'absence d'erreurs de build
 ```
